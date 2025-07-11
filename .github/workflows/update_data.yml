@@ -1,0 +1,35 @@
+# Name of the automated job
+name: Fetch Latest FIRMS Data
+
+# Controls when the action will run
+on:
+  # Runs on a schedule (every hour at the start of the hour)
+  schedule:
+    - cron: '0 * * * *'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # The "build" job
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      # Downloads the latest KMZ file from the NASA server
+      - name: Download latest FIRMS KMZ
+        run: |
+          curl "https://firms.modaps.eosdis.nasa.gov/api/kml_fire_footprints/usa_contiguous_and_hawaii/24h/noaa-21-viirs-c2/FirespotArea_usa_contiguous_and_hawaii_noaa-21-viirs-c2_24h.kmz" -o FirespotArea_J2_VIIRS_C2_USA_contiguous_and_Hawaii_24h.kmz
+          
+      # Commits the new file to the repository if it has changed
+      - name: Commit and push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Automated: Updated FIRMS fire data"
+          file_pattern: "*.kmz" # Only commit changes to .kmz files
