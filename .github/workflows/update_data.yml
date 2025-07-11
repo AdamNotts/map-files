@@ -1,5 +1,5 @@
 # Name of the automated job
-name: Fetch Latest FIRMS Data
+name: Fetch and Process FIRMS Data
 
 # Controls when the action will run
 on:
@@ -12,23 +12,41 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # --- THIS IS THE NEW PART TO ADD ---
     # Grant the action permission to write to the repository
     permissions:
       contents: write
-    # ------------------------------------
 
     # Steps represent a sequence of tasks
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
 
+      # Step 1: Install GDAL, a powerful GIS tool
+      - name: Install GDAL
+        run: sudo apt-get update && sudo apt-get install -y gdal-bin
+
+      # Step 2: Download the original KMZ from NASA
       - name: Download latest FIRMS KMZ
         run: |
-          curl "https://firms.modaps.eosdis.nasa.gov/api/kml_fire_footprints/usa_contiguous_and_hawaii/24h/noaa-21-viirs-c2/FirespotArea_usa_contiguous_and_hawaii_noaa-21-viirs-c2_24h.kmz" -o FirespotArea_J2_VIIRS_C2_USA_contiguous_and_Hawaii_24h.kmz
+          curl "https://firms.modaps.eosdis.nasa.gov/api/kml_fire_footprints/usa_contiguous_and_hawaii/24h/noaa-21-viirs-c2/FirespotArea_usa_contiguous_and_hawaii_noaa-21-viirs-c2_24h.kmz" -o original.kmz
           
-      - name: Commit and push if changed
+      # Step 3: Unzip the downloaded file
+      - name: Unzip original KMZ
+        run: unzip -o original.kmz -d unzipped_data
+
+      # Step 4: Use GDAL to extract and simplify Points (Centroids)
+      - name: Process Fire Points
+        run: |
+          ogr2ogr -f "KML" fires_points.kml unzipped_data/doc.kml "375m Fire Detection Centroid"
+          
+      # Step 5: Use GDAL to extract and simplify Polygons (Footprints)
+      - name: Process Fire Areas
+        run: |
+          ogr2ogr -f "KML" fires_areas.kml unzipped_data/doc.kml "375m Fire Detection Footprint"
+
+      # Step 6: Commit the two new simplified files to your repository
+      - name: Commit new KML files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Automated: Updated FIRMS fire data"
-          file_pattern: "*.kmz"
+          commit_message: "Automated: Updated and processed FIRMS point and area data"
+          file_pattern: "*.kml"
